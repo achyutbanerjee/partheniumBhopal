@@ -41,7 +41,7 @@ At each combination of Lake and Habitat, we used a **1 sq.m.** quadrat as the st
 The data was analyzed to
 
 1.  Compare above-ground biomass between species and across different environmental gradients
-
 2.  Investigate the influence of associated species on Parthenium hysterophorus and vice versa
-
 3.  Compare the leaf-related traits across different environmental gradients
+
+References:

@@ -204,7 +204,7 @@ summary(sla_model)
 
     What it is: The predicted mean SLA for the reference group (**Hathaikheda_Dam** and **Abandoned** habitat, based on alphabetical order).
 
-    Significance: If the p-value is <0.05, the SLA for this specific baseline group is significantly different from zero (which is expected for biological traits).
+    Significance: If the p-value is \<0.05, the SLA for this specific baseline group is significantly different from zero (which is expected for biological traits).
 
     ::: {.callout-tip appearance="simple"}
     Intercept is significant. The SLA for Parthenium in Abandoned Habitat of Hathaikheda Dam is significantly different from zero.
@@ -239,9 +239,9 @@ summary(sla_model)
 ::: callout-important
 **Summary of the findings:**
 
--   **Lake Effect:** Highly Significant (p<0.001). This is the biggest driver of SLA variation. Plants in Lower Lake and Upper Lake generally have much higher SLA (thinner, faster-growing leaves) than those in the Dams.
+-   **Lake Effect:** Highly Significant (p\<0.001). This is the biggest driver of SLA variation. Plants in Lower Lake and Upper Lake generally have much higher SLA (thinner, faster-growing leaves) than those in the Dams.
 -   **Habitat Effect:** Not significant on its own.
--   **Interaction Effect:** Significant (p<0.01). This is crucial. It tells us that *Parthenium* doesn't behave the same way in every lake. For example, it might love the "Natural" habitat in one lake but perform poorly in it in another.
+-   **Interaction Effect:** Significant (p\<0.01). This is crucial. It tells us that *Parthenium* doesn't behave the same way in every lake. For example, it might love the "Natural" habitat in one lake but perform poorly in it in another.
 :::
 
 #### Tidying up the summary table
