@@ -1,0 +1,31 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Summer Project 2024"
+  navbar:
+    left:
+      - href: about.qmd
+        text: Home
+  sidebar:
+    style: "docked"
+    search: true
+    contents:
+      - text: "About"
+        href: about.qmd
+        contents: about.qmd
+      - section: "Biomass"
+        href: dataAnalysis.qmd
+        contents: dataAnalysis.qmd
+      - section: "Leaf"
+        href: leafdata.qmd
+        contents: leafdata.qmd
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+editor: visual
+

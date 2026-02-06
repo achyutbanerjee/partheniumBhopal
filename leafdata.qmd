@@ -1,0 +1,489 @@
+---
+title: "Analysis of leaf traits"
+author: "Achyut Kumar Banerjee"
+date: last-modified
+format: 
+  html:
+    embed-resources: true
+    theme: cosmo
+    toc: true
+    toc-location: right
+    code-copy: true        # Adds a copy button to code blocks
+    self-contained: true   # Keeps images/styles inside one HTML file
+    df-print: paged        # Makes large data frames scrollable
+    grid:
+      sidebar-width: 250px
+---
+
+```{css, echo=FALSE}
+/* Styling for the Code Box */
+div.sourceCode {
+  border: 1px solid #dee2e6;
+  border-left: 5px solid #6c757d;
+  border-radius: 5px;
+}
+
+/* Styling for the Results Box */
+.cell-output-display, .cell-output-stdout {
+  background-color: #f0f7ff;
+  border: 1px solid #b8daff;
+  border-left: 5px solid #31BAE9;
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 5px;
+}
+
+/* Add a "Result" label to the top of the blue box */
+.cell-output-display::before, .cell-output-stdout::before {
+  content: "ANALYSIS RESULT";
+  display: block;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #31BAE9;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+```
+
+## About the variable
+
+Specific Leaf Area (SLA) and Leaf Dry Matter Content (LDMC) are the two primary indicators of a plant's position on the **Leaf Economic Spectrum**. They describe how a plant invests its carbon.
+
+### Sampling strategy
+
+> **Hierarchical Sampling Design:** A multi-scale sampling approach was employed to capture the trait plasticity of *Parthenium hysterophorus*. The study followed a nested design: **4 Lakes** (Regional scale) × **3 Habitats** (Landscape scale: Roadside, Abandoned, Natural) × **3 Sites** (Local scale) per combination.
+>
+> To account for within-site variability and minimize the effects of leaf age (ontogeny), **10 healthy, fully expanded leaves** were collected from different individuals at each site (N=360 leaves total). This high-resolution sampling allows for the assessment of how *Parthenium* modulates its resource-use efficiency (SLA) and structural investment (LDMC) in response to varying levels of anthropogenic disturbance and environmental heterogeneity across the Bhopal lake system.
+
+### About Specific Leaf Area
+
+SLA is the ratio of leaf area to leaf dry mass (mm²/mg or cm²/g).
+
+-   **Relevance:** It measures the "speed" of a plant's metabolism.
+
+-   **In this study:** High SLA indicates thin, "expensive" leaves that are built for rapid photosynthesis and fast growth. If *Parthenium* shows higher SLA in **Roadside** habitats compared to **Natural** ones, it suggests the weed is switching to an "acquisitive" strategy to exploit the higher light or nutrient availability often found in disturbed areas.
+
+### About Leaf Dry Matter Content (LDMC)
+
+LDMC is the ratio of leaf dry mass to its fresh mass (mg/g).
+
+-   **Relevance:** It measures leaf density and "toughness." It is often inversely related to SLA.
+
+-   **In this study:** High LDMC indicates a "conservative" strategy. These leaves are sturdier, better protected against wilting (desiccation), and more resistant to herbivores. If *Parthenium* in **Abandoned** or **Natural** sites has higher LDMC, it suggests the plant is investing in leaf longevity and stress tolerance to survive in more competitive or resource-limited environments.
+
+## About the analysis
+
+With our hierarchical sampling strategy (350 leaves total), we can perform a **Linear Mixed-Effects Model (LMM)**. This is more powerful than a simple ANOVA because it accounts for the fact that leaves collected from the same **Site** are not independent (they share the same soil, micro-climate, and parent plant).
+
+-   Summary statistics \[mean SLA and LDMC, standard deviation and standard error\] - across lakes and habitats [Summary statistics]
+
+-   Linear Mixed-effects Models (LMM) to compare SLA and LDMC values across lakes and habitats
+
+## Install and load packages
+
+```{r}
+#| label: setup
+#| output: false
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(datarium)
+library(rstatix)
+library(ARTool) # for 2-way ANOVA
+library(car) # for the Levene test
+library(FSA) # for posthoc test
+library(ggplot2) # for plotting
+library(Rmisc) # for summary statistics
+library(wesanderson) # for plotting
+library(lme4)
+library(lmerTest) # Adds p-values to lme4 models
+library(emmeans)  # For post-hoc comparisons
+library(broom.mixed)
+library(gt)
+library(dplyr)
+```
+
+## Set the working directory
+
+```{r}
+setwd("/Users/achyutkumarbanerjee/Library/CloudStorage/OneDrive-AzimPremjiFoundation/Student research/Parthenium summer/partheniumBhopal")
+```
+
+## Analysis
+
+### Read data
+
+```{r}
+#| eval: true
+data<-read.csv("leaf_data.csv")
+```
+
+350 observations, 7 variables (Lake, Habitat, Site, Observation, Dry.weight, SLA, LDMC)
+
+### Factorization
+
+Coercing the 2 objects (Lake and Habitat) into factors. The factors will represent categorical data. Factors are useful for statistical modeling and plotting as they treat data as discrete categories rather than continuous numbers or simple characters.
+
+```{r}
+data$group1<-as.factor(data$Lake)
+data$group2<-as.factor(data$Habitat)
+```
+
+Check the levels of the 2 categorical variables
+
+```{r}
+levels(data$group1)
+levels(data$group2)
+```
+
+### Summary statistics
+
+We will create 3 vectors each for SLA and LDMC to store the result - one for both the categorical variables together (Lake and Habitat) and two for them separately. For summary statistics, we will use the `summarySE` function of the `Rmisc` package. This function gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
+
+**Arguments**
+
+-   data: a data frame
+-   measurevar: the name of a column that contains the variable to be summarized
+-   groupvars: a vector containing names of columns that contain grouping variables
+
+```{r}
+sla <- summarySE(data, measurevar="SLA", groupvars=c("group1","group2"))
+sla
+
+ldmc<-summarySE(data, measurevar="LDMC", groupvars=c("group1","group2"))
+ldmc
+
+sla1 <- summarySE(data, measurevar="SLA", groupvars=c("group1"))
+sla1
+sla2 <- summarySE(data, measurevar="SLA", groupvars=c("group2"))
+sla2
+
+ldmc1 <- summarySE(data, measurevar="LDMC", groupvars=c("group1"))
+ldmc1
+ldmc2 <- summarySE(data, measurevar="LDMC", groupvars=c("group2"))
+ldmc2
+```
+
+::: {.callout-important appearance="simple"}
+Summary of the findings:
+
+1.  Out of the 4 Lakes, maximum SLA and minimum LDMC = Lower Lake, minimum SLA and maximum LDMC = Kerwa Dam
+2.  Out of the 3 Habitats, maximum SLA and minimum LDMC = Natural habitat, minimum SLA and maximum LDMC = Abandoned habitat
+:::
+
+### Linear Mixed-Effects Model: SLA
+
+```{r}
+# (1|Site) accounts for the nesting of leaves within sites
+# We are asking R to separate the noise caused by "Site" differences from the actual signal caused by "Lake" and "Habitat."
+
+sla_model <- lmer(SLA ~ Lake * Habitat + (1|Site), data = data)
+summary(sla_model)
+```
+
+::: {.callout-important appearance="simple"}
+**Interpretation of the findings**
+
+-   **The Random Effects (The "1\|Site" part)**
+
+    The table lists "Site" and "Residual."
+
+    **Interpretation:** This tells us how much of the variation in SLA is due to differences *between* our specific sites versus variation *within* a site (leaf-to-leaf differences).
+
+    **Relevance:** If the variance for "Site" is high, it means that even within the same Lake and Habitat, the specific location (Site) matters a lot—perhaps due to localized soil moisture or shade.
+
+    ::: {.callout-tip appearance="simple"}
+    Variance for the Residual is higher than the Site - specific location does not matter a lot.
+    :::
+
+-   **The Fixed Effects (The "Lake \* Habitat" part)**
+
+    The table at the bottom shows the coefficients. Because "Lake" and "Habitat" are categorical, R uses Dummy Coding. This means it picks one category as the "Baseline" (Intercept) and compares everyone else to it.
+
+    **The Intercept**
+
+    What it is: The predicted mean SLA for the reference group (**Hathaikheda_Dam** and **Abandoned** habitat, based on alphabetical order).
+
+    Significance: If the p-value is <0.05, the SLA for this specific baseline group is significantly different from zero (which is expected for biological traits).
+
+    ::: {.callout-tip appearance="simple"}
+    Intercept is significant. The SLA for Parthenium in Abandoned Habitat of Hathaikheda Dam is significantly different from zero.
+    :::
+
+    **Main Effects (e.g., `LakeLower_Lake` or `HabitatRoadside`)**
+
+    Lake Effect: If `LakeLower_Lake` is positive and significant, it means that in the "Abandoned" habitat, Lower Lake has significantly higher SLA than Hathaikheda Dam.
+
+    Habitat Effect: If `HabitatRoadside` is significant, it means that in Hathaikheda Dam, the Roadside habitat has a different SLA than the Abandoned habitat.
+
+    ::: {.callout-tip appearance="simple"}
+    a.  `LakeLower_Lake` is positive and significant = In the "Abandoned" habitat, Lower Lake has significantly higher SLA than Hathaikheda Dam.
+
+    b.  `LakeUpper_Lake` is positive and significant = In the "Abandoned" habitat, Upper Lake has significantly higher SLA than Hathaikheda Dam.
+    :::
+
+    **The Interaction Terms (e.g., `LakeUpper_Lake:HabitatNatural`)**
+
+    This is the most important part for our "plasticity" argument.
+
+    If Significant: It means the way *Parthenium* responds to a habitat depends on which lake it is in. For example, *Parthenium* might increase its SLA on roadsides in the Upper Lake but decrease it on roadsides in Kerwa Dam.
+
+    If NOT Significant: It means *Parthenium* responds to habitats in the same way across all lakes. This suggests a **universal strategy** for the species in this region.
+
+    ::: {.callout-tip appearance="simple"}
+    a.  **`LakeUpper_Lake:HabitatNatural`** is significant. It’s not just that Upper Lake has high SLA. It’s not just that Natural habitats have high SLA. It is that **specifically in Upper Lake**, the **Natural habitat** triggers a massive jump in SLA that we don't see in the Natural habitats of the Dams. Parthenium increases its SLA significantly in natural habitat in the Upper Lake.
+    b.  The SLA of *Parthenium* in the Natural habitats of Upper Lake (≈8060 mm2/mg) was significantly higher than the baseline (Hathaikheda Dam/Abandoned, ≈2815 mm2/mg). The significant interaction term `LakeUpper_Lake:HabitatNatural` (p\<0.05) confirms that this increase represents a unique phenotypic shift toward an acquisitive leaf strategy specifically within the Upper Lake ecosystem.
+    :::
+:::
+
+::: callout-important
+**Summary of the findings:**
+
+-   **Lake Effect:** Highly Significant (p<0.001). This is the biggest driver of SLA variation. Plants in Lower Lake and Upper Lake generally have much higher SLA (thinner, faster-growing leaves) than those in the Dams.
+-   **Habitat Effect:** Not significant on its own.
+-   **Interaction Effect:** Significant (p<0.01). This is crucial. It tells us that *Parthenium* doesn't behave the same way in every lake. For example, it might love the "Natural" habitat in one lake but perform poorly in it in another.
+:::
+
+#### Tidying up the summary table
+
+```{r}
+tidy(sla_model) %>%
+  gt() %>%
+  fmt_number(columns = c(estimate, std.error, statistic), decimals = 2) %>%
+  fmt_number(columns = p.value, decimals = 4) %>%
+  tab_style(
+    style = cell_text(size = "small"), # Makes text smaller
+    locations = cells_body()
+  )
+```
+
+#### Posthoc comparisons
+
+To find exactly *where* the differences are. Since the Interaction was significant, we must look at habitats *within* each lake separately.
+
+```{r}
+emmeans(sla_model, pairwise ~ Habitat | Lake)
+```
+
+::: {.callout-important appearance="simple"}
+**Interpretation of the findings**
+
+1.  **In Upper Lake:** There is a massive, significant difference (p\<0.001). The SLA in **Natural** habitats (≈8060) is nearly double that of **Roadside** (≈4165) or **Abandoned** (≈3925) habitats. This is a key biological finding: In Upper Lake, *Parthenium* is extremely "acquisitive" in natural areas, possibly threatening native biodiversity more aggressively there.
+
+2.  **In Lower Lake:** The differences are marginally non-significant (p\>0.05). SLA is high everywhere (≈6000−7500), regardless of habitat.
+
+3.  **In Kerwa & Hathaikheda Dams:** There are **no significant differences** between habitats (p\>0.05). The plants maintain a steady, lower SLA (≈2000−2900) across all habitat types.
+:::
+
+#### Visualization
+
+To confirm the interaction visually.
+
+```{r}
+# 1. Extract Adjusted Means from the model
+sla_emm <- emmeans(sla_model, ~ Lake * Habitat)
+
+# 2. Convert to data frame for ggplot
+sla_emm_df <- as.data.frame(sla_emm)
+
+# 3. Plot using the SE calculated by the model
+p1<-ggplot(sla_emm_df, aes(x = Habitat, y = emmean, color = Lake, group = Lake)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE), 
+                width = 0.15) +
+  labs(
+    title = "Model-Adjusted Interaction Plot",
+    y = "Estimated Marginal Mean SLA ± SE",
+    x = "Habitat"
+  ) +
+  theme_minimal()
+p1
+```
+
+::: {.callout-important appearance="simple"}
+-   We can see the lines for **Kerwa Dam** and **Hathaikheda Dam** being relatively flat and close together (indicating no habitat effect).
+
+-   We can see the line for **Upper Lake** "spike" dramatically upward at the "Natural" habitat point, crossing over the other lines.
+
+-   **Interpretation:** This "crossing" or non-parallel pattern is the visual proof of our significant **Interaction Effect**. It illustrates that the "Natural" habitat has a unique, stimulating effect on *Parthenium* ONLY in the Upper Lake ecosystem.
+:::
+
+### Linear Mixed-Effects Model: LDMC
+
+```{r}
+# (1|Site) accounts for the nesting of leaves within sites
+# We are asking R to separate the noise caused by "Site" differences from the actual signal caused by "Lake" and "Habitat."
+
+ldmc_model <- lmer(LDMC ~ Lake * Habitat + (1|Site), data = data)
+summary(ldmc_model)
+```
+
+::: {.callout-important appearance="simple"}
+**Interpretation of the findings**
+
+-   **The Random Effects (The "1\|Site" part)**
+
+    ::: {.callout-tip appearance="simple"}
+    Variance for the Residual is higher than the Site - specific site does not matter a lot. It means the Lake and Habitat are the true drivers, and the specific site doesn't matter much.
+    :::
+
+-   **The Fixed Effects (The "Lake \* Habitat" part)**
+
+    **The Intercept**
+
+    ::: {.callout-tip appearance="simple"}
+    Intercept is significant. The LDMC for Parthenium in Abandoned Habitat of Hathaikheda Dam is significantly different from zero.
+    :::
+
+    **Main Effects**
+
+    ::: {.callout-tip appearance="simple"}
+    a.  `LakeLower_Lake` is negative and significant = In the "Abandoned" habitat, Lower Lake has significantly lower LDMC than Hathaikheda Dam. Low LDMC means the leaves are more "watery" and less dense. This usually happens when the plant is in a high-resource environment (like the Natural riparian zones of Upper Lake) where it doesn't need to build "armored," tough leaves to survive drought. It is focusing on fast growth instead of survival.
+    :::
+
+    **The Interaction Terms**
+
+    ::: {.callout-tip appearance="simple"}
+    a.  **`LakeUpper_Lake:HabitatNatural`** is significant. It’s not just that Upper Lake has low LDMC. It’s not just that Natural habitats have low LDMC. It is that **specifically in Upper Lake**, the **Natural habitat** triggers a massive fall in LDMC that we don't see in the Natural habitats of the Dams. Parthenium decreases its LDMC significantly in natural habitat in the Upper Lake.
+    b.  It means *Parthenium* in this specific location is at its **least conservative** state—it is producing the flimsiest, fastest-growing leaves in our entire study.
+    :::
+:::
+
+#### Tidying up the summary table
+
+```{r}
+tidy(ldmc_model) %>%
+  gt() %>%
+  fmt_number(columns = c(estimate, std.error, statistic), decimals = 2) %>%
+  fmt_number(columns = p.value, decimals = 4) %>%
+  tab_style(
+    style = cell_text(size = "small"), # Makes text smaller
+    locations = cells_body()
+  )
+```
+
+#### Posthoc comparisons
+
+To find exactly *where* the differences are. Since the Interaction was significant, we must look at habitats *within* each lake separately.
+
+```{r}
+emmeans(ldmc_model, pairwise ~ Habitat | Lake)
+```
+
+::: {.callout-important appearance="simple"}
+**Interpretation of the findings**
+
+1.  **In Upper Lake:** In Upper Lake, habitat type significantly influenced leaf toughness. Specifically, plants in Natural habitats had significantly lower LDMC than those on Roadsides and Abandoned habitats (p\<0.001). This is a key biological finding: In Upper Lake, *Parthenium* is extremely "acquisitive" in natural areas, possibly threatening native biodiversity more aggressively there.
+
+2.  **In Lower Lake:** The differences are marginally non-significant (p\>0.05). LDMC is low everywhere, regardless of habitat.
+
+3.  **In Kerwa & Hathaikheda Dams:** There are **no significant differences** between habitats (p\>0.05). The plants maintain a steady LDMC across all habitat types.
+:::
+
+#### Visualization
+
+To confirm the interaction visually.
+
+```{r}
+# 1. Extract Adjusted Means from the model
+ldmc_emm <- emmeans(ldmc_model, ~ Lake * Habitat)
+
+# 2. Convert to data frame for ggplot
+ldmc_emm_df <- as.data.frame(ldmc_emm)
+
+# 3. Plot using the SE calculated by the model
+p2<-ggplot(ldmc_emm_df, aes(x = Habitat, y = emmean, color = Lake, group = Lake)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE), 
+                width = 0.15) +
+  labs(
+    title = "Model-Adjusted Interaction Plot",
+    y = "Estimated Marginal Mean LDMC ± SE",
+    x = "Habitat"
+  ) +
+  theme_minimal()
+p2
+```
+
+::: {.callout-important appearance="simple"}
+-   The sharp decline in LDMC for **Upper Lake** within the **Natural** habitat indicates a shift toward a low-density, acquisitive leaf strategy. In contrast, populations in the dam sites (e.g., Hathaikheda) maintained relatively stable, high LDMC values across all habitats, reflecting a more conservative resource-use strategy. The non-parallel lines visualize the significant Lake × Habitat interaction (p\<0.05).
+
+-   **Interpretation:** This "crossing" or non-parallel pattern is the visual proof of our significant **Interaction Effect**. It illustrates that the "Natural" habitat has a unique, stimulating effect on *Parthenium* ONLY in the Upper Lake ecosystem.
+:::
+
+## Visualization
+
+```{r}
+#| label: fig-combined-traits
+#| fig-cap: "Comparison of SLA and LDMC across habitats"
+#| fig-width: 12
+#| fig-height: 6
+
+library(dplyr)
+library(ggplot2)
+
+# 1. Prepare SLA data
+sla_df <- as.data.frame(emmeans(sla_model, ~ Habitat | Lake)) %>%
+  mutate(Trait = "SLA (mm²/mg)") # Label it
+
+# 2. Prepare LDMC data
+ldmc_df <- as.data.frame(emmeans(ldmc_model, ~ Habitat | Lake)) %>%
+  mutate(Trait = "LDMC (mg/g)") # Label it
+
+# 3. Combine them into one big table
+all_traits <- rbind(sla_df, ldmc_df)
+
+# 4. Plot using facet_wrap (No extra packages needed!)
+ggplot(all_traits, aes(x = Habitat, y = emmean, color = Lake, group = Lake)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = emmean - SE, ymax = emmean + SE), width = 0.2) +
+  # This creates the side-by-side layout
+  facet_wrap(~ Trait, scales = "free_y") + 
+  labs(
+    title = "Leaf Economics Spectrum: SLA vs. LDMC",
+    y = "Trait Value (Mean ± SE)", # Generic label since units differ
+    x = "Habitat Type"
+  ) +
+  theme_bw() +
+  theme(
+    strip.text = element_text(size = 12, face = "bold"), # Make titles bigger
+    legend.position = "bottom"
+  )
+```
+
+::: {.callout-warning appearance="simple"}
+### Summarizing the leaf trait analysis
+
+The central discovery of our study is that *Parthenium hysterophorus* does not have a fixed growth strategy. Instead, it exhibits significant **phenotypic plasticity**, meaning it actively adjusts its leaf traits based on the specific combination of regional environment (Lake) and local land use (Habitat).
+
+This is proven statistically by the significant **Lake × Habitat interaction** in both our SLA and LDMC models.
+
+The most dramatic response occurred specifically in the **Natural habitats of Upper Lake**, where *Parthenium* abandoned its "stress-tolerant" baseline in favor of aggressive growth.
+
+-   **SLA (Specific Leaf Area):** You found a **significantly positive** interaction.
+
+    -   *Result:* Leaves here were much thinner and wider (≈8060 mm2/mg) compared to the baseline (≈2815 mm2/mg).
+
+    -   *Strategy:* This maximizes surface area to capture sunlight rapidly, a hallmark of an "acquisitive" or "live fast" strategy.
+
+-   **LDMC (Leaf Dry Matter Content):** You found a **significantly negative** interaction.
+
+    -   *Result:* Leaves here had much lower dry matter density.
+
+    -   *Strategy:* The plant reduced its investment in tough structural tissue (lignin/cellulose), producing "cheaper," flimsier leaves to save energy for rapid expansion.
+
+Our analysis, thus, confirms the classic **Leaf Economics Spectrum** trade-off. The results for SLA and LDMC act as perfect mirror images of each other:
+
+![](images/clipboard-656274439.png)
+
+Crucially, this aggressive shift was **context-dependent**.
+
+-   **In the Dams (Kerwa/Hathaikheda):** The interaction plots showed relatively flat or parallel lines. *Parthenium* maintained a "conservative" strategy (lower SLA, higher LDMC) even in natural areas.
+
+-   **In Upper Lake:** The interaction plots showed "crossing lines" (divergence). The Natural habitat triggered a unique, massive physiological change that did not occur elsewhere.
+
+"Our results demonstrate that *Parthenium hysterophorus* is a highly plastic invader capable of fine-tuning its functional traits to local environmental conditions. In the Upper Lake ecosystem, the plant shifts to a hyper-acquisitive strategy within natural riparian zones—simultaneously increasing SLA and decreasing LDMC to maximize growth rates. In contrast, populations in dam ecosystems maintain a conservative, stress-tolerant strategy regardless of habitat type. This ability to 'switch gears' likely contributes to its successful invasion of diverse ecological niches."
+:::

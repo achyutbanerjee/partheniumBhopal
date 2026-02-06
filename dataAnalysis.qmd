@@ -1,0 +1,626 @@
+---
+title: "Analysis of dry above-ground biomass"
+author: "Achyut Kumar Banerjee"
+date: last-modified
+format: 
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: right
+    code-copy: true        # Adds a copy button to code blocks
+    self-contained: true   # Keeps images/styles inside one HTML file
+    df-print: paged        # Makes large data frames scrollable
+    grid:
+      sidebar-width: 250px
+---
+
+```{css, echo=FALSE}
+/* Styling for the Code Box */
+div.sourceCode {
+  border: 1px solid #dee2e6;
+  border-left: 5px solid #6c757d;
+  border-radius: 5px;
+}
+
+/* Styling for the Results Box */
+.cell-output-display, .cell-output-stdout {
+  background-color: #f0f7ff;
+  border: 1px solid #b8daff;
+  border-left: 5px solid #31BAE9;
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 5px;
+}
+
+/* Add a "Result" label to the top of the blue box */
+.cell-output-display::before, .cell-output-stdout::before {
+  content: "ANALYSIS RESULT";
+  display: block;
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #31BAE9;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+```
+
+------------------------------------------------------------------------
+
+## About the variable
+
+We used **1 sq.m.** quadrat as the standard sampling unit. At each combination of lake and habitat, we used three quadrats (n = 4x3 = 12). From each quadrat:
+
+-   All above-ground plant material of *Parthenium* within each quadrat was clipped at ground level. We utilized the destructive harvest method to ensure maximum accuracy.
+
+-   The samples were cleaned of debris and oven-dried at 72^0^C until a constant weight was reached.
+
+-   Dry weight was recorded, eliminating the variability caused by fluctuating water content in live plants, thus providing a true measure of carbon sequestration and resource allocation. The standardized area allows for the calculation of biomass per unit area.
+
+We also recorded number of associated species in each quadrat (species richness). The number of associated species varies from 2 to 11. We estimated dry weight of all associated species individually. For comparative analysis, we used the sum of all species within a quadrat at a specific lake x habitat combination.
+
+**Dry Above-Ground Biomass (AGB, hereafter)** serves as a critical indicator of invasion success. It is a physical manifestation of a plant's ability to capture resources (light, water, and nutrients). Therefore, high biomass in *Parthenium* indicates high **resource use efficiency**. In addition, larger plants with higher biomass typically produce a greater number of seeds (often up to 25,000 seeds per plant for *Parthenium*). Therefore, AGB can be considered as a proxy for **propagule pressure**.
+
+Comparing AGB across different habitats (e.g., roadside vs. natural areas vs. abandoned plots) reveals how environmental stressors or anthropogenic disturbances facilitate invasion. Roadsides often act as **invasion corridors** with higher nutrient runoff, leading to higher biomass compared to more stable abandoned plots.
+
+## About the analysis
+
+-   Summary statistics \[mean AGB, standard deviation and standard error\] - for Parthenium and other species [Summary statistics]
+-   Comparison of mean AGB (Parthenium and other species) between 4 water bodies and 3 habitats [Comparison: One-way ANOVA]:
+-   Comparison of mean AGB (Parthenium and other species) across 4 water bodies and 3 habitats (and their interactions) [Comparison: Two-way ANOVA]
+-   Comparison of mean AGB between Parthenium and other species (pulling all data together) [Comparison: Paired t-test (All species)](#comparison-paired-t-test-all-species)
+-   Comparison of mean AGB between Parthenium and other species across 4 water bodies and 3 habitats [Comparison: Two-way ANOVA (All species)](#comparison-two-way-anova-all-species)
+-   To check if Parthenium AGB is influenced by other species biomass or species richness [Regression analysis]
+-   Plot average and median AGB for Parthenium and other species separately and together [Plotting]
+
+## Install and load packages
+
+```{r}
+#| label: setup
+#| output: false
+library(tidyverse)
+library(ggpubr)
+library(rstatix)
+library(datarium)
+library(rstatix)
+library(ARTool) # for 2-way ANOVA
+library(car) # for the Levene test
+library(FSA) # for posthoc test
+library(ggplot2) # for plotting
+library(Rmisc) # for summary statistics
+library(wesanderson) # for plotting
+library(dplyr)
+```
+
+## Set the working directory
+
+```{r}
+setwd("/Users/achyutkumarbanerjee/Library/CloudStorage/OneDrive-AzimPremjiFoundation/Student research/Parthenium summer/partheniumBhopal")
+```
+
+## Analysis
+
+### Read data
+
+```{r}
+#| eval: true
+data<-read.csv("biomass_data.csv")
+```
+
+35 observations, 5 variables (Lake, Habitat, Site, Fresh weight, Dry weight)
+
+### Factorization
+
+Coercing the 2 objects (Lake and Habitat) into factors. The factors will represent categorical data. Factors are useful for statistical modeling and plotting as they treat data as discrete categories rather than continuous numbers or simple characters.
+
+```{r}
+data$group1<-as.factor(data$Lake)
+data$group2<-as.factor(data$Habitat)
+```
+
+Check the levels of the 2 categorical variables
+
+```{r}
+levels(data$group1)
+levels(data$group2)
+```
+
+### Summary statistics
+
+We will create 3 vectors to store the result - one for both the categorical variables together (Lake and Habitat) and two for them separately. For summary statistics, we will use the *summarySE* function of the `Rmisc` package. This function gives count, mean, standard deviation, standard error of the mean, and confidence interval (default 95%).
+
+**Arguments**
+
+-   data: a data frame
+
+-   measurevar: the name of a column that contains the variable to be summarized
+
+-   groupvars: a vector containing names of columns that contain grouping variables
+
+```{r}
+parthenium <- summarySE(data, measurevar="Dry.weight", groupvars=c("group1","group2"))
+parthenium
+
+others<-summarySE(data, measurevar="Dry.weight_O", groupvars=c("group1","group2"))
+others
+
+parthenium1 <- summarySE(data, measurevar="Dry.weight", groupvars=c("group1"))
+parthenium1
+parthenium2 <- summarySE(data, measurevar="Dry.weight", groupvars=c("group2"))
+parthenium2
+
+others1 <- summarySE(data, measurevar="Dry.weight_O", groupvars=c("group1"))
+others1
+others2 <- summarySE(data, measurevar="Dry.weight_O", groupvars=c("group2"))
+others2
+```
+
+### Checking assumptions
+
+Before proceeding with the main analysis, we assess the **normality** of the response variable (`measurevar` = Dry.weight) for each combination of `group1` and `group2`. A significant result ($p < 0.05$) suggests a deviation from a normal distribution.
+
+```{r}
+data %>%
+  group_by(group1) %>%
+  shapiro_test(Dry.weight)
+
+data %>%
+  group_by(group2) %>%
+  shapiro_test(Dry.weight)
+
+data %>%
+  group_by(group1) %>%
+  shapiro_test(Dry.weight_O)
+
+data %>%
+  group_by(group2) %>%
+  shapiro_test(Dry.weight_O)
+```
+
+Following the normality check, we evaluate the **homogeneity of variance** across groups using Levene’s Test. This step is critical for verifying the homoscedasticity assumption required for parametric tests like ANOVA. Levene’s test is more robust to departures from normality. A non-significant result ($p < 0.05$) indicates that the variances are approximately equal across groups. We are using the `car` package to do this analysis.
+
+```{r}
+leveneTest(Dry.weight ~ group1, data = data)
+leveneTest(Dry.weight ~ group2, data = data)
+
+leveneTest(Dry.weight_O ~ group1, data = data)
+leveneTest(Dry.weight_O ~ group2, data = data)
+```
+
+### Comparison: One-way ANOVA
+
+A One-Way ANOVA is used to determine whether there are any statistically significant differences between the means of three or more independent (unrelated) groups based on one single factor.
+
+-   Independent variable (factor): 3 categories of habitats / 4 categories of lakes
+
+-   Dependent variable: Above-ground dry biomass
+
+We will do 3 things here:
+
+-   Because the previous diagnostic checks (Shapiro-Wilk or Levene’s) indicated a violation of parametric assumptions, we employ the **Kruskal-Wallis test**. This is a non-parametric alternative to a one-way ANOVA that does not require the data to follow a normal distribution. Instead of comparing means, it transforms the data into ranks and tests whether the samples originate from the same distribution. A significant p-value (p\<0.05) suggests that at least one group stochastically dominates another.
+
+-   When reporting a Kruskal-Wallis test, a p-value only tells you if groups differ, not how much they differ. To quantify the magnitude of the difference, we calculate the **Effect Size**. For non-parametric data, the most common metric is Eta-squared (η2).
+
+-   When the Kruskal-Wallis test yields a significant result, it indicates that at least one group differs from the others, but it does not specify which pairs are different. To pinpoint these differences, we conduct a Dunn’s Test, which is the standard non-parametric post-hoc procedure. We are using the `FSA` package to do this analysis.
+
+**First, we will do it for Parthenium**
+
+```{r}
+# Group 1 (Lake)
+kruskal.test(Dry.weight ~ group1, data = data)
+kruskal_effsize(Dry.weight ~ group1,data = data) # effect size estimation
+```
+
+::: callout-important
+Summary:
+
+-   The KW test showed significant difference in AGB of Parthenium across lakes.
+-   The effect size is large.
+:::
+
+```{r}
+dunnTest(Dry.weight~group1,data=data) #posthoc test
+```
+
+::: callout-important
+Summary:
+
+-   The posthoc Dunn test revealed that Parthenium AGB in Upper Lake is significantly higher than that in Kerwa Dam and Hathaikheda Dam.
+:::
+
+```{r}
+# Group 2 (Habitat)
+kruskal.test(Dry.weight ~ group2, data = data) 
+kruskal_effsize(Dry.weight ~ group2,data = data) # effect size estimation
+```
+
+::: callout-important
+Summary:
+
+-   The KW test showed no significant difference in AGB of Parthenium across habitats. Therefore, no posthoc test is done.
+-   The effect size is small.
+:::
+
+**Then, for other species**
+
+```{r}
+# Group 1 (Lake)
+kruskal.test(Dry.weight_O ~ group1, data = data)
+kruskal_effsize(Dry.weight_O ~ group1,data = data) # effect size estimation
+```
+
+::: callout-important
+Summary:
+
+-   The KW test showed significant difference in AGB of other species across lakes.
+-   The effect size is large.
+:::
+
+```{r}
+dunnTest(Dry.weight_O~group1,data=data) #posthoc test
+```
+
+::: callout-important
+Summary:
+
+-   The posthoc test revealed that AGB of other species is significantly higher in Upper lake than in Lower Lake.
+:::
+
+```{r}
+# Group 2 (Habitat)
+kruskal.test(Dry.weight_O ~ group2, data = data) 
+kruskal_effsize(Dry.weight_O ~ group2,data = data) # effect size estimation
+```
+
+::: callout-important
+Summary:
+
+-   The KW test showed no significant difference in AGB of other species across habitats. Therefore, no posthoc test is done.
+-   The effect size is small.
+:::
+
+### Comparison: Two-way ANOVA
+
+A Two-Way ANOVA examines the effect of two independent variables on a dependent variable. It not only tells you if each factor is significant on its own (Main Effects) but also if the factors work together in a specific way (Interaction Effect).
+
+-   Independent variable (factor): 3 categories of habitats and 4 categories of lakes
+
+-   Dependent variable: Above-ground dry biomass
+
+When analyzing the influence of two independent variables on a non-normally distributed dependent variable, traditional non-parametric tests like Kruskal-Wallis are insufficient because they cannot test for interactions. To address this, we use the Aligned Rank Transform (ART).
+
+ART works by "aligning" the data for each effect (Main Effects and Interaction) before ranking them. This process isolates each specific effect, allowing us to apply standard ANOVA procedures to the ranked data. This provides a statistically sound method to determine if the effect of one factor depends on the level of another, even when parametric assumptions are violated.
+
+To identify specific differences following a significant ART interaction, we conduct pairwise comparisons using the `art.con()` function. This method ensures that the comparisons are performed on the correctly aligned and ranked data for the effect of interest. We apply a p-value adjustment (e.g., Holm) to control for the family-wise error rate across multiple comparisons.We are using the `ARTool` package to do this analysis.
+
+**First, we will do it for Parthenium**
+
+```{r}
+art_model <- art(Dry.weight ~ group1 * group2, data = data) # model building
+anova_art <- anova(art_model) # conducting anova
+print(anova_art) # print the results
+```
+
+::: callout-important
+Summary of two-way ANOVA:
+
+-   The ART analysis revealed significant effect of group 1 (Lake) and the interaction of group 1 and group 2 (Lake x Habitat) on the AGB of Parthenium.
+-   So, we will conduct the posthoc tests only for group 1 and group1:group2 interactions.
+:::
+
+```{r}
+# pairwise comparisons for one variable
+marginal = art.con(art_model, "group1") 
+print(marginal)
+
+# pairwise comparisons for interactions
+marginal1 = art.con(art_model, "group1:group2", adjust="holm") 
+```
+
+::: callout-important
+Summary of pairwise comparisons:
+
+-   The AGB of Parthenium in Upper Lake is significantly higher than that in the Lower Lake, Kerwa Dam and Hathaikheda Dam, after adjusting for the effects of the habitats. This result is similar to what we observed in one-way ANOVA \[[Comparison: One-way ANOVA]\]
+-   Considering the interaction effect, the posthoc tests revealed that the AGB in Upper Lake Roadside habitat is significantly higher than that in Lower Lake Natural habitat and Kerwa Dam Roadside habitat. The AGB in Upper Lake Abandoned habitat is also significantly higher than that in Kerwa Dam Roadside habitat.
+:::
+
+**Then, for other species**
+
+```{r}
+art_model1 <- art(Dry.weight_O ~ group1 * group2, data = data) # model building
+anova_art1 <- anova(art_model1) # conducting anova
+print(anova_art1) # print the results
+```
+
+::: callout-important
+Summary of two-way ANOVA:
+
+-   The ART analysis revealed significant effect of group 1 (Lake) on the AGB of other species.
+-   So, we will conduct the posthoc tests only for group 1.
+:::
+
+```{r}
+# pairwise comparisons for one variable
+marginal2 = art.con(art_model1, "group1") 
+print(marginal2)
+```
+
+::: callout-important
+Summary of pairwise interactions:
+
+-   The AGB of other species in Upper Lake is significantly higher than that in the Lower Lake, after adjusting for the effects of the habitats.
+-   This result is similar to what we observed in one-way ANOVA \[[Comparison: One-way ANOVA]\].
+:::
+
+### Comparison: Paired t-test (All species) {#comparison-paired-t-test-all-species}
+
+Now we are interested to check whether the Parthenium biomass is significantly higher or lower than that of the other species. Because the previous diagnostic checks (Shapiro-Wilk or Levene’s) indicated a violation of parametric assumptions, we use the **Wilcoxon Signed-Rank Test**. This is a non-parametric alternative to a paired t-test that does not require the data to follow a normal distribution.
+
+```{r}
+wilcox.test(data$Dry.weight, data$Dry.weight_O, paired = TRUE)
+```
+
+::: callout-important
+Summary of the paired t-test (overall)
+
+-   The Wilcoxon Signed-Rank Test shows that AGB of Parthenium is significantly higher than other species.
+:::
+
+### Comparison: Two-way ANOVA (All species) {#comparison-two-way-anova-all-species}
+
+Now we are interested to check whether the Parthenium biomass is significantly higher than that of the other species **across different lakes and habitats**. We will first use 2-way ANOVA to identify if the difference in AGB values between Parthenium and other species is due to lake, habitat, or both.
+
+```{r}
+# Calculate the difference to use as the dependent variable
+data$Weight_Diff <- data$Dry.weight - data$Dry.weight_O
+
+# Fit the ART model
+art_model <- art(Weight_Diff ~ group1 * group2, data = data)
+
+# Run the ANOVA on the aligned ranks
+anova_art <- anova(art_model)
+print(anova_art)
+```
+
+::: callout-important
+Summary of the ART analysis
+
+-   The 2-way ANOVA showed that the difference in AGB values between Parthenium and other species is influenced by lake (group 1) and the interaction between lake and habitat.
+-   There is no effect of habitat on the AGB difference.
+:::
+
+Therefore, the next step would be to identify the lakes where the AGB difference between Parthenium and other species is significant. For this, we will first **subset** data for each lake. Note that we are reporting median AGB, because our data is highly skewed and we are using non-parametric tests.
+
+```{r}
+# For Lower Lake
+lower_lake_data  <- subset(data, Lake == "Lower_Lake")
+lake_comparison <- lower_lake_data %>%
+  summarise(
+    Median_Parthenium = median(Dry.weight),
+    Median_Others = median(Dry.weight_O),
+    p_value = wilcox.test(Dry.weight, Dry.weight_O, paired = TRUE)$p.value,
+    Median_Diff = median(Dry.weight - Dry.weight_O)
+  )
+print(lake_comparison)
+```
+
+```{r}
+# For Upper Lake
+upper_lake_data  <- subset(data, Lake == "Upper_Lake")
+lake_comparison <- upper_lake_data %>%
+  summarise(
+    Median_Parthenium = median(Dry.weight),
+    Median_Others = median(Dry.weight_O),
+    p_value = wilcox.test(Dry.weight, Dry.weight_O, paired = TRUE)$p.value,
+    Median_Diff = median(Dry.weight - Dry.weight_O)
+  )
+print(lake_comparison)
+```
+
+```{r}
+# For Kerwa Dam
+kerwa_dam_data   <- subset(data, Lake == "Kerwa_Dam")
+lake_comparison <- kerwa_dam_data %>%
+  summarise(
+    Median_Parthenium = median(Dry.weight),
+    Median_Others = median(Dry.weight_O),
+    p_value = wilcox.test(Dry.weight, Dry.weight_O, paired = TRUE)$p.value,
+    Median_Diff = median(Dry.weight - Dry.weight_O)
+  )
+print(lake_comparison)
+```
+
+```{r}
+# For Hathaikheda Dam
+hathaikheda_data <- subset(data, Lake == "Hathaikheda_Dam")
+lake_comparison <- hathaikheda_data %>%
+  summarise(
+    Median_Parthenium = median(Dry.weight),
+    Median_Others = median(Dry.weight_O),
+    p_value = wilcox.test(Dry.weight, Dry.weight_O, paired = TRUE)$p.value,
+    Median_Diff = median(Dry.weight - Dry.weight_O)
+  )
+print(lake_comparison)
+```
+
+::: callout-important
+Summary of the lake-wise paired t-test
+
+-   Parthenium AGB is significantly higher than other species AGB across all lakes, except for the Kerwa Dam.
+-   The highest difference between the median AGB of Parthenium and that of other species was observed in Upper Lake.
+:::
+
+Now, for the lake x habitat interactions, we will run the test for each group. Note that with n=3 per group, the p-value will not go below 0.25 due to mathematical limits of the test, so we also calculate the medians.
+
+```{r}
+# 1. Get the unique lakes and habitats
+lakes <- unique(data$Lake)
+habitats <- unique(data$Habitat)
+
+# 3. Create an empty list to store the results of each loop
+results_list <- list()
+
+# 4. Start the nested loop
+for (l in lakes) {
+  for (h in habitats) {
+    
+    # Subset the data for the specific combination
+    sub_data <- subset(data, Lake == l & Habitat == h)
+    
+    # Check if we have data for this combination
+    if (nrow(sub_data) > 0) {
+      
+      # Run the Wilcoxon test
+      # exact = FALSE handles ties; paired = TRUE is for your paired design
+      test <- wilcox.test(sub_data$Dry.weight, 
+                          sub_data$Dry.weight_O, 
+                          paired = TRUE, 
+                          exact = FALSE)
+      
+      # Extract values and store them in a temporary data frame (one row)
+      res_row <- data.frame(
+        Lake = l,
+        Habitat = h,
+        N = nrow(sub_data),
+        Median_Parthenium = median(sub_data$Dry.weight),
+        Median_Others = median(sub_data$Dry.weight_O),
+        W_Stat = test$statistic,
+        P_Value = test$p.value,
+        stringsAsFactors = FALSE
+      )
+      
+      # Add this row to the list using a unique name
+      results_list[[paste(l, h, sep = "_")]] <- res_row
+    }
+  }
+}
+
+# 5. Combine all the stored rows into one final summary table
+summary_table <- do.call(rbind, results_list)
+
+# 6. Reset the row names and display the result
+rownames(summary_table) <- NULL
+print(summary_table)
+```
+
+::: callout-important
+Interpretation of the findings:
+
+**The P-Value:** As mentioned before, because n=3, the minimum possible p-value is **0.25**. Therefore, we should report that while the p-values are limited by sample size, the **Medians** show the actual biological trend. If we compare the medians,
+
+-   In the **Kerwa_Dam - Roadside** row, we can see `Median_Others` is higher.
+-   In the **Upper_Lake - Roadside** row, we will see the largest gap between the two.
+
+**W_Stat:** This tells us the sum of the ranks. For n=3, a W=6 (or W=0) means all three sites followed the same trend (e.g., the AGB of Parthenium was more than that of other species in all three sites).
+:::
+
+### Regression analysis
+
+To check if **Parthenium AGB** is influenced by **other species biomass** or **species richness**, we can use multiple regression and see how they work together as predictors.
+
+```{r}
+# Multiple Linear Regression
+model <- lm(Dry.weight ~ Dry.weight_O + Species.richness, data = data)
+summary(model)
+
+# 4. Visualization (Scatter plots)
+library(ggplot2)
+
+p1 <- ggplot(data, aes(x = Dry.weight_O, y = Dry.weight)) +
+  geom_point(color = "blue", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "black") +
+  labs(title = "Influence of Other Biomass", x = "Other Species Weight (g)", y = "Parthenium Weight (g)") +
+  theme_minimal()
+p1
+
+p2 <- ggplot(data, aes(x = Species.richness, y = Dry.weight)) +
+  geom_point(color = "forestgreen", alpha = 0.6) +
+  geom_smooth(method = "lm", color = "black") +
+  labs(title = "Influence of Richness", x = "Species Richness", y = "Parthenium Weight (g)") +
+  theme_minimal()
+p2
+```
+
+::: callout-important
+Interpretation of the regression analysis
+
+-   While species richness had no discernible impact on *Parthenium* biomass (p\>0.05), a significant positive relationship was found with the biomass of other species (Regression, p=0.03).
+-   This suggests that *Parthenium* does not currently face strong competitive exclusion from local biodiversity; instead, it thrives in the same high-productivity conditions that support other vegetation.
+:::
+
+## Plotting
+
+We are plotting the summarized data in the form of 2 grouped bar plots - one for Parthenium and one for the other species.
+
+-   x-axis: Lake (4 lakes) (group1).
+
+-   y-axis: Dry weight (gm) \[AGB\]
+
+-   For each lake, we will have 3 bars. Each bar will represent the AGB of *Parthenium* for one habitat (abandoned, natural and roadsides - group2). So, there will be a total of 12 bars (4 lakes x 3 habitats).
+
+-   We will add a title to the plot, write x and y axes labels, and add the SE bars to each bar.- We are using `ggplot2` package for plotting and `wesanderson` package for colouring the bars.
+
+**For Parthenium**
+
+```{r}
+p<-ggplot(parthenium, aes(fill=group2, y=Dry.weight, x=group1)) + 
+  geom_bar(position="dodge", stat="identity")+
+  geom_errorbar(aes(ymin=Dry.weight-se, ymax=Dry.weight+se),
+                width=.2,position = position_dodge(0.9))
+p1<-p+labs(title="Comparison of Parthenium AGB", x="Lake ecosystems", y = "Dry weight (gm)")+
+  theme_light() +
+  scale_fill_manual(values = wes_palette(n=3, name="Darjeeling2"))+
+  theme(legend.position="bottom")+
+  geom_hline(yintercept=0,color="gray")
+p2<-p1+theme(
+  panel.grid.major.y = element_blank(),
+  panel.border = element_blank(),
+  axis.ticks.y = element_blank(),
+  axis.text = element_text(size = 10,color = "black"),
+  axis.title = element_text(size = 11),
+  legend.title=element_blank()
+)
+p2
+```
+
+**For other species**
+
+```{r}
+p<-ggplot(others, aes(fill=group2, y=Dry.weight_O, x=group1)) + 
+  geom_bar(position="dodge", stat="identity")+
+  geom_errorbar(aes(ymin=Dry.weight_O-se, ymax=Dry.weight_O+se),
+                width=.2,position = position_dodge(0.9))
+p1<-p+labs(title="Comparison of other species AGB", x="Lake ecosystems", y = "Dry weight (gm)")+
+  theme_light() +
+  scale_fill_manual(values = wes_palette(n=3, name="Darjeeling2"))+
+  theme(legend.position="bottom")+
+  geom_hline(yintercept=0,color="gray")
+p2<-p1+theme(
+  panel.grid.major.y = element_blank(),
+  panel.border = element_blank(),
+  axis.ticks.y = element_blank(),
+  axis.text = element_text(size = 10,color = "black"),
+  axis.title = element_text(size = 11),
+  legend.title=element_blank()
+)
+p2
+```
+
+**Combined box plot**
+
+```{r}
+# Reshape data for plotting
+library(tidyr)
+data_long <- data %>%
+  pivot_longer(cols = c(Dry.weight, Dry.weight_O), 
+               names_to = "Species", 
+               values_to = "Weight")
+
+# Create Boxplot
+ggplot(data_long, aes(x = Habitat, y = Weight, fill = Species)) +
+  geom_boxplot() +
+  facet_wrap(~Lake) +
+  labs(title = "Dry Weight Comparison: Parthenium vs Others",
+       y = "Dry Weight (gm)",
+       x = "Habitat") +
+  theme_minimal()
+```
